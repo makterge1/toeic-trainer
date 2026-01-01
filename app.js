@@ -279,3 +279,373 @@ function buildPool(){
   if(mode === "listening") candidates = candidates.filter(q => q.mode === "listening");
   if(mode === "mixed") candidates = candidates; // both
 
+  // fallback if not enough questions in chosen difficulty
+  if(candidates.length < count){
+    const extra = QUESTIONS.filter(q => (mode==="mixed") ? true : q.mode===mode);
+    candidates = shuffle([...new Set([...candidates, ...extra])]);
+  }
+
+  return shuffle(candidates).slice(0, Math.min(count, candidates.length));
+}
+
+function renderQuestion(){
+  selected = null;
+  feedback.textContent = "";
+  checkBtn.disabled = false;
+  nextBtn.classList.add("hidden");
+  finishBtn.classList.add("hidden");
+
+  const q = pool[idx];
+  progressEl.textContent = `Question ${idx+1}/${pool.length}`;
+  scoreLive.textContent = `Score: ${score}`;
+  partTag.textContent = q.part || (q.mode==="listening" ? "Listening" : "Reading");
+  diffTag.textContent = q.difficulty ? `Difficulty: ${q.difficulty}` : "Difficulty";
+  questionText.textContent = q.question;
+
+  // Listening mode: show player
+  if(q.mode === "listening"){
+    listeningBox.classList.remove("hidden");
+    audioEl.src = q.audioSrc || ""; // optional
+    // if no audio file, we show simulated audio text in bubble
+    mascotSay(q.audioText || "Listen carefully 👂");
+  } else {
+    listeningBox.classList.add("hidden");
+    audioEl.pause();
+    audioEl.src = "";
+    mascotSay("Focus. One question at a time ✅");
+  }
+
+  answersEl.innerHTML = "";
+  q.choices.forEach((c,i)=>{
+    const div = document.createElement("div");
+    div.className = "choice";
+    div.textContent = `${String.fromCharCode(65+i)}. ${c}`;
+    div.onclick = ()=>{
+      [...answersEl.children].forEach(ch=>ch.classList.remove("selected"));
+      div.classList.add("selected");
+      selected = i;
+    };
+    answersEl.appendChild(div);
+  });
+
+  qStart = performance.now();
+  updatePace();
+}
+
+function updatePace(){
+  // estimate based on average time per question in this session
+  const avg = perQuestionTimes.length
+    ? perQuestionTimes.reduce((a,b)=>a+b,0)/perQuestionTimes.length
+    : 0;
+  paceEl.textContent = avg ? `⚡ Avg: ${(avg/1000).toFixed(1)}s/Q` : `⚡ Pace`;
+}
+
+function markAnswers(correctIdx, chosenIdx){
+  [...answersEl.children].forEach((node,i)=>{
+    if(i===correctIdx) node.classList.add("correct");
+    if(chosenIdx===i && chosenIdx!==correctIdx) node.classList.add("wrong");
+  });
+}
+
+function start(){
+  pool = buildPool();
+  if(pool.length === 0){
+    alert("Ajoute plus de questions dans app.js.");
+    return;
+  }
+  idx = 0;
+  score = 0;
+  history = [];
+  perQuestionTimes = [];
+  startTime = performance.now();
+  quiz.classList.remove("hidden");
+  results.classList.add("hidden");
+  startTimer(parseInt(durationSel.value,10));
+  mascotSay("Go! Shock your TOEIC score ⚡");
+  renderQuestion();
+}
+
+function check(){
+  const q = pool[idx];
+  if(selected === null){
+    feedback.textContent = "Choose an answer first.";
+    return;
+  }
+
+  const dt = performance.now() - qStart;
+  perQuestionTimes.push(dt);
+  updatePace();
+
+  const correct = selected === q.answerIndex;
+  if(correct) score++;
+
+  history.push({
+    question: q.question,
+    choices: q.choices,
+    correct: q.answerIndex,
+    chosen: selected,
+    explanation: q.explanation || "",
+    mode: q.mode,
+    timeMs: dt,
+    part: q.part,
+    difficulty: q.difficulty
+  });
+
+  markAnswers(q.answerIndex, selected);
+  checkBtn.disabled = true;
+
+  if(correct){
+    feedback.textContent = "✅ Correct!";
+    pulseMascot("good");
+  }else{
+    feedback.textContent = `❌ Wrong. Correct answer: ${String.fromCharCode(65+q.answerIndex)}.`;
+    pulseMascot("bad");
+  }
+
+  if(idx < pool.length-1) nextBtn.classList.remove("hidden");
+  else finishBtn.classList.remove("hidden");
+}
+
+function next(){
+  idx++;
+  renderQuestion();
+}
+
+function updateStreakOnFinish(){
+  const today = nowDayKey();
+  const last = getLastDay();
+
+  // If already finished today, don't change streak
+  if(last === today) return;
+
+  // Check if last day is exactly yesterday
+  const d = new Date();
+  const yesterday = new Date(d.getFullYear(), d.getMonth(), d.getDate()-1);
+  const yKey = `${yesterday.getFullYear()}-${yesterday.getMonth()+1}-${yesterday.getDate()}`;
+
+  let streak = getStreak();
+  if(last === yKey) streak += 1;
+  else streak = 1;
+
+  setStreak(streak);
+  setLastDay(today);
+
+  let best = getBestStreak();
+  if(streak > best){ best = streak; setBestStreak(best); }
+
+  if(streak >= 3) unlockBadge("streak3");
+  if(streak >= 7) unlockBadge("streak7");
+}
+
+function finish(){
+  stopTimer();
+  quiz.classList.add("hidden");
+  results.classList.remove("hidden");
+
+  const total = pool.length;
+  const acc = total ? score/total : 0;
+  const durationMs = performance.now() - startTime;
+  const avgMs = perQuestionTimes.length ? perQuestionTimes.reduce((a,b)=>a+b,0)/perQuestionTimes.length : 0;
+
+  finalScore.textContent = `Final score: ${score} / ${total} — Accuracy: ${Math.round(acc*100)}% — Avg: ${(avgMs/1000).toFixed(1)}s/Q`;
+
+  // confetti if good score
+  if(acc >= 0.85){
+    confetti({ particleCount: 180, spread: 90, origin:{y:0.7} });
+    mascotSay("🔥 That was impressive. Your prof will be shocked.");
+  }else if(acc >= 0.65){
+    confetti({ particleCount: 90, spread: 70, origin:{y:0.7} });
+    mascotSay("Nice! Keep grinding, you're leveling up.");
+  }else{
+    mascotSay("No stress. Review errors → improvement is guaranteed.");
+  }
+
+  // Update global stats
+  const st = getStats();
+  history.forEach(h=>{
+    st.totalAnswered += 1;
+    st.totalCorrect += (h.chosen === h.correct) ? 1 : 0;
+
+    // Points: difficulty-based
+    const pts = (h.difficulty==="hard") ? 3 : (h.difficulty==="medium") ? 2 : 1;
+    st.totalPoints += (h.chosen === h.correct) ? pts : 0;
+
+    if(h.mode === "reading"){
+      st.readingAnswered += 1;
+      st.readingCorrect += (h.chosen === h.correct) ? 1 : 0;
+    }else{
+      st.listeningAnswered += 1;
+      st.listeningCorrect += (h.chosen === h.correct) ? 1 : 0;
+    }
+  });
+  setStats(st);
+
+  // Save session log
+  const sessions = getSessions();
+  sessions.push({
+    date: new Date().toISOString(),
+    mode: modeSel.value,
+    difficulty: diffSel.value,
+    score,
+    total,
+    accuracy: Math.round(acc*100),
+    avgSecPerQ: Number((avgMs/1000).toFixed(2))
+  });
+  setSessions(sessions);
+
+  // Streak + badges
+  updateStreakOnFinish();
+  unlockBadge("first");
+  if(score >= 10) unlockBadge("ten");
+  if(total >= 10 && acc === 1) unlockBadge("perfect");
+  if(diffSel.value==="hard" && acc >= 0.70) unlockBadge("hardwin");
+
+  // Render review
+  renderReview();
+
+  // Update dashboard
+  updateHeader();
+  renderCharts();
+}
+
+function renderReview(){
+  review.innerHTML = "";
+  history.forEach((h,i)=>{
+    const chosenLetter = String.fromCharCode(65 + h.chosen);
+    const correctLetter = String.fromCharCode(65 + h.correct);
+    const ok = h.chosen === h.correct;
+
+    const div = document.createElement("div");
+    div.className = "card";
+    div.style.marginTop = "10px";
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="color:#aab2d5"><b>Q${i+1}</b> • ${h.part || ""} • ${h.mode} • ${h.difficulty}</div>
+        <div style="color:#aab2d5">⏱ ${(h.timeMs/1000).toFixed(1)}s</div>
+      </div>
+      <div style="margin-top:8px">${h.question}</div>
+      <div style="margin-top:10px;color:${ok ? "#31d0aa" : "#ff5a5f"}">
+        Your answer: <b>${chosenLetter}</b> — Correct: <b>${correctLetter}</b>
+      </div>
+      <div style="margin-top:8px;color:#aab2d5"><i>${h.explanation}</i></div>
+    `;
+    review.appendChild(div);
+  });
+}
+
+function renderCharts(){
+  const sessions = getSessions().slice(-12);
+  const labels = sessions.map((s, i)=>`${i+1}`);
+  const accData = sessions.map(s=>s.accuracy);
+
+  const st = getStats();
+  const rAcc = st.readingAnswered ? Math.round(100*st.readingCorrect/st.readingAnswered) : 0;
+  const lAcc = st.listeningAnswered ? Math.round(100*st.listeningCorrect/st.listeningAnswered) : 0;
+
+  const lastTimes = history.map(h=>Number((h.timeMs/1000).toFixed(2)));
+
+  // Line
+  const ctxL = $("chartLine");
+  if(chartLine) chartLine.destroy();
+  chartLine = new Chart(ctxL, {
+    type:"line",
+    data:{ labels, datasets:[{ label:"Accuracy %", data: accData, tension:.35 }]},
+    options:{
+      responsive:true,
+      plugins:{ legend:{ labels:{ color:"#aab2d5" }}},
+      scales:{
+        x:{ ticks:{ color:"#aab2d5" }, grid:{ color:"rgba(255,255,255,.06)" } },
+        y:{ ticks:{ color:"#aab2d5" }, grid:{ color:"rgba(255,255,255,.06)" }, suggestedMin:0, suggestedMax:100 }
+      }
+    }
+  });
+
+  // Donut
+  const ctxD = $("chartDonut");
+  if(chartDonut) chartDonut.destroy();
+  chartDonut = new Chart(ctxD, {
+    type:"doughnut",
+    data:{
+      labels:["Reading", "Listening"],
+      datasets:[{ data:[rAcc, lAcc] }]
+    },
+    options:{
+      plugins:{ legend:{ labels:{ color:"#aab2d5" }}},
+      cutout:"62%"
+    }
+  });
+
+  // Bar time per question
+  const ctxB = $("chartBar");
+  if(chartBar) chartBar.destroy();
+  chartBar = new Chart(ctxB, {
+    type:"bar",
+    data:{
+      labels: lastTimes.map((_,i)=>`Q${i+1}`),
+      datasets:[{ label:"Seconds", data:lastTimes }]
+    },
+    options:{
+      plugins:{ legend:{ labels:{ color:"#aab2d5" }}},
+      scales:{
+        x:{ ticks:{ color:"#aab2d5" }, grid:{ color:"rgba(255,255,255,.06)" } },
+        y:{ ticks:{ color:"#aab2d5" }, grid:{ color:"rgba(255,255,255,.06)" } }
+      }
+    }
+  });
+}
+
+function resetAll(){
+  stopTimer();
+  timerChip.textContent = "⏱️ 00:00";
+  quiz.classList.add("hidden");
+  results.classList.add("hidden");
+  feedback.textContent = "";
+  answersEl.innerHTML = "";
+  mascotSay("Reset done. Ready for another shock ⚡");
+}
+
+function exportStats(){
+  const payload = {
+    stats: getStats(),
+    sessions: getSessions(),
+    badges: getBadges(),
+    streak: getStreak(),
+    bestStreak: getBestStreak()
+  };
+  const blob = new Blob([JSON.stringify(payload,null,2)], { type:"application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "toeic_shock_stats.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function toggleFullscreen(){
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen?.();
+    mascotSay("Exam mode ON 🧪 (focus!)");
+  }else{
+    document.exitFullscreen?.();
+    mascotSay("Exam mode OFF ✅");
+  }
+}
+
+// Listening controls (works if audio src exists)
+playBtn?.addEventListener("click", ()=>audioEl.play().catch(()=>{}));
+pauseBtn?.addEventListener("click", ()=>audioEl.pause());
+
+startBtn.addEventListener("click", start);
+resetBtn.addEventListener("click", resetAll);
+checkBtn.addEventListener("click", check);
+nextBtn.addEventListener("click", next);
+finishBtn.addEventListener("click", finish);
+againBtn.addEventListener("click", start);
+exportBtn.addEventListener("click", exportStats);
+fullscreenBtn.addEventListener("click", toggleFullscreen);
+
+// Initial render
+renderBadges();
+updateHeader();
+renderCharts();
+mascotSay("Ready. Choose your mode and start a session 🚀");
