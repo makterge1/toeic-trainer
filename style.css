@@ -1,0 +1,23 @@
+:root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+body { margin:0; background:#0b1020; color:#e7e9ee; }
+.top { padding:18px 20px; display:flex; justify-content:space-between; align-items:center; }
+.top h1 { margin:0; font-size:20px; }
+.meta { display:flex; gap:12px; opacity:.9; }
+.card { max-width:900px; margin:0 auto; background:#121a33; border:1px solid #22305f;
+        border-radius:14px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+.row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+select, button { padding:10px 12px; border-radius:10px; border:1px solid #2a3a74; background:#0f1630; color:#e7e9ee; }
+button { cursor:pointer; }
+button.ghost { background:transparent; }
+hr { border:0; border-top:1px solid #22305f; margin:16px 0; }
+.hidden { display:none; }
+.qhead { display:flex; justify-content:space-between; opacity:.9; margin-bottom:10px; }
+.answers { display:grid; gap:10px; margin:14px 0; }
+.choice { padding:12px; border:1px solid #2a3a74; border-radius:12px; background:#0f1630; cursor:pointer; }
+.choice.selected { outline:2px solid #86a7ff; }
+.choice.correct { border-color:#38b000; }
+.choice.wrong { border-color:#ff5a5f; }
+.actions { display:flex; gap:10px; }
+.feedback { margin-top:10px; opacity:.95; }
+.listening { opacity:.9; background:#0f1630; padding:10px; border-radius:10px; border:1px dashed #2a3a74; }
+.foot { text-align:center; padding:14px; opacity:.7; }
