@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TOEIC Trainer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <h1>TOEIC Trainer</h1>
+    <div class="meta">
+      <span id="modeTag">Mode: Reading</span>
+      <span id="timer">⏱️ 00:00</span>
+    </div>
+  </header>
+
+  <main class="card">
+    <div class="row">
+      <label>Mode :</label>
+      <select id="mode">
+        <option value="reading">Reading</option>
+        <option value="listening">Listening (texte)</option>
+      </select>
+
+      <label>Durée :</label>
+      <select id="duration">
+        <option value="0">Sans chrono</option>
+        <option value="5">5 min</option>
+        <option value="10">10 min</option>
+        <option value="20">20 min</option>
+      </select>
+
+      <button id="startBtn">Démarrer</button>
+      <button id="resetBtn" class="ghost">Réinitialiser</button>
+    </div>
+
+    <hr />
+
+    <section id="quiz" class="hidden">
+      <div class="qhead">
+        <div id="progress">Question 1/1</div>
+        <div id="scoreLive">Score: 0</div>
+      </div>
+
+      <h2 id="questionText"></h2>
+      <p id="listeningText" class="listening hidden"></p>
+
+      <div id="answers" class="answers"></div>
+
+      <div class="actions">
+        <button id="checkBtn">Valider</button>
+        <button id="nextBtn" class="hidden">Suivant</button>
+        <button id="finishBtn" class="hidden">Terminer</button>
+      </div>
+
+      <div id="feedback" class="feedback"></div>
+    </section>
+
+    <section id="results" class="hidden">
+      <h2>Résultats</h2>
+      <p id="finalScore"></p>
+      <div id="review"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <small>Ajoute tes questions dans <code>app.js</code> (tableau <code>QUESTIONS</code>).</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
