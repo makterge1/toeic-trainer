@@ -3,69 +3,200 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>TOEIC Trainer</title>
+  <title>TOEIC Shock Trainer ⚡</title>
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Charts + confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 </head>
 <body>
+  <div class="bg-orbs"></div>
+
   <header class="top">
-    <h1>TOEIC Trainer</h1>
-    <div class="meta">
-      <span id="modeTag">Mode: Reading</span>
-      <span id="timer">⏱️ 00:00</span>
+    <div class="brand">
+      <div class="logo">T</div>
+      <div>
+        <h1>TOEIC Shock Trainer</h1>
+        <p class="sub">Reading + Listening • Stats • Badges • Streak • Mode Examen</p>
+      </div>
+    </div>
+
+    <div class="hud">
+      <div class="chip" id="streakChip">🔥 Streak: 0</div>
+      <div class="chip" id="levelChip">⭐ Level: Rookie</div>
+      <div class="chip" id="timerChip">⏱️ 00:00</div>
+      <button id="fullscreenBtn" class="btn ghost" title="Mode Examen (plein écran)">🧪 Exam</button>
     </div>
   </header>
 
-  <main class="card">
-    <div class="row">
-      <label>Mode :</label>
-      <select id="mode">
-        <option value="reading">Reading</option>
-        <option value="listening">Listening (texte)</option>
-      </select>
+  <main class="grid">
+    <!-- LEFT: Control + Mascot -->
+    <section class="panel">
+      <div class="panel-title">🎛️ Session</div>
 
-      <label>Durée :</label>
-      <select id="duration">
-        <option value="0">Sans chrono</option>
-        <option value="5">5 min</option>
-        <option value="10">10 min</option>
-        <option value="20">20 min</option>
-      </select>
+      <div class="controls">
+        <div class="field">
+          <label>Mode</label>
+          <select id="mode">
+            <option value="reading">Reading (Parts 5/6/7)</option>
+            <option value="listening">Listening (audio)</option>
+            <option value="mixed">Mixed (Reading + Listening)</option>
+          </select>
+        </div>
 
-      <button id="startBtn">Démarrer</button>
-      <button id="resetBtn" class="ghost">Réinitialiser</button>
-    </div>
+        <div class="field">
+          <label>Difficulté</label>
+          <select id="difficulty">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
 
-    <hr />
+        <div class="field">
+          <label>Durée</label>
+          <select id="duration">
+            <option value="0">Sans chrono</option>
+            <option value="5">5 min</option>
+            <option value="10">10 min</option>
+            <option value="20">20 min</option>
+          </select>
+        </div>
 
-    <section id="quiz" class="hidden">
-      <div class="qhead">
-        <div id="progress">Question 1/1</div>
-        <div id="scoreLive">Score: 0</div>
+        <div class="field">
+          <label>Nombre de questions</label>
+          <select id="count">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="30">30</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <button id="startBtn" class="btn primary">▶ Start</button>
+          <button id="resetBtn" class="btn ghost">↩ Reset</button>
+        </div>
       </div>
 
-      <h2 id="questionText"></h2>
-      <p id="listeningText" class="listening hidden"></p>
-
-      <div id="answers" class="answers"></div>
-
-      <div class="actions">
-        <button id="checkBtn">Valider</button>
-        <button id="nextBtn" class="hidden">Suivant</button>
-        <button id="finishBtn" class="hidden">Terminer</button>
+      <div class="mascot">
+        <div class="mascot-face" id="mascotFace">
+          <div class="eye"></div><div class="eye"></div>
+          <div class="mouth"></div>
+        </div>
+        <div class="mascot-bubble" id="mascotBubble">
+          Ready. Choose your mode. I’ll track your progress 😎
+        </div>
       </div>
 
-      <div id="feedback" class="feedback"></div>
+      <div class="badges">
+        <div class="panel-title">🏅 Badges</div>
+        <div id="badgesWrap" class="badge-grid"></div>
+      </div>
     </section>
 
-    <section id="results" class="hidden">
-      <h2>Résultats</h2>
-      <p id="finalScore"></p>
-      <div id="review"></div>
+    <!-- CENTER: Quiz -->
+    <section class="panel">
+      <div class="panel-title">🧩 Quiz</div>
+
+      <section id="quiz" class="hidden">
+        <div class="qhead">
+          <div id="progress">Question 1/1</div>
+          <div class="chips">
+            <div class="chip" id="scoreLive">Score: 0</div>
+            <div class="chip" id="pace">⚡ Pace</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="tagrow">
+            <span class="tag" id="partTag">Part</span>
+            <span class="tag" id="diffTag">Difficulty</span>
+          </div>
+
+          <h2 id="questionText"></h2>
+
+          <div id="listeningBox" class="listening hidden">
+            <div class="listen-row">
+              <button id="playBtn" class="btn small">▶ Play</button>
+              <button id="pauseBtn" class="btn small ghost">⏸ Pause</button>
+              <span class="hint">Tip: écoute 1–2 fois comme au TOEIC</span>
+            </div>
+            <audio id="audio"></audio>
+          </div>
+
+          <div id="answers" class="answers"></div>
+
+          <div class="actions">
+            <button id="checkBtn" class="btn primary">Validate</button>
+            <button id="nextBtn" class="btn hidden">Next</button>
+            <button id="finishBtn" class="btn hidden danger">Finish</button>
+          </div>
+
+          <div id="feedback" class="feedback"></div>
+        </div>
+      </section>
+
+      <section id="results" class="hidden">
+        <div class="card">
+          <h2>📈 Results</h2>
+          <p id="finalScore"></p>
+          <div class="row">
+            <button id="againBtn" class="btn primary">🔁 New session</button>
+            <button id="exportBtn" class="btn ghost">⬇ Export stats (JSON)</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>🧠 Review</h3>
+          <div id="review"></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- RIGHT: Dashboard -->
+    <section class="panel">
+      <div class="panel-title">📊 Dashboard</div>
+
+      <div class="card mini">
+        <div class="kpis">
+          <div class="kpi">
+            <div class="kpi-label">Accuracy</div>
+            <div class="kpi-value" id="kpiAcc">0%</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Sessions</div>
+            <div class="kpi-value" id="kpiSessions">0</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Best streak</div>
+            <div class="kpi-value" id="kpiBestStreak">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="chart-title">Progress (last sessions)</h3>
+        <canvas id="chartLine" height="160"></canvas>
+      </div>
+
+      <div class="card">
+        <h3 class="chart-title">Skills split</h3>
+        <canvas id="chartDonut" height="160"></canvas>
+      </div>
+
+      <div class="card">
+        <h3 class="chart-title">Time per question</h3>
+        <canvas id="chartBar" height="160"></canvas>
+      </div>
     </section>
   </main>
 
   <footer class="foot">
-    <small>Ajoute tes questions dans <code>app.js</code> (tableau <code>QUESTIONS</code>).</small>
+    <small>
+      Pro-tip: ajoute tes propres questions dans <code>app.js</code>.  
+      (Listening = tu peux mettre un mp3 dans le repo et le référencer.)
+    </small>
   </footer>
 
   <script src="app.js"></script>
